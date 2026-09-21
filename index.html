@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reading the Camarin - Attendance Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+      --border-color: #334155;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 5px 0;
+      font-size: 1.8rem;
+      color: #38bdf8;
+    }
+
+    p.subtitle {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .mode-switch-container {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      justify-content: center;
+    }
+
+    .btn-mode {
+      padding: 10px 20px;
+      border: 2px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-muted);
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.95rem;
+    }
+
+    .btn-mode.active-entry {
+      background: var(--accent-green);
+      border-color: var(--accent-green);
+      color: #ffffff;
+    }
+
+    .btn-mode.active-exit {
+      background: var(--accent-red);
+      border-color: var(--accent-red);
+      color: #ffffff;
+    }
+
+    #scanner-container {
+      width: 100%;
+      max-width: 480px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    #reader {
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      min-height: 250px;
+      background: #000;
+      border: none !important;
+    }
+
+    #reader video {
+      border-radius: 8px;
+    }
+
+    .btn-start {
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 15px;
+      display: inline-block;
+    }
+
+    .btn-start:hover {
+      background-color: #2563eb;
+    }
+
+    #display {
+      width: 100%;
+      max-width: 480px;
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+      box-sizing: border-box;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      line-height: 1.4;
+    }
+
+    .status-success {
+      background: var(--accent-green);
+      color: #ffffff;
+    }
+
+    .status-exit-success {
+      background: #0284c7;
+      color: #ffffff;
+    }
+
+    .status-error {
+      background: var(--accent-red);
+      color: #ffffff;
+    }
+
+    #permission-warning {
+      width: 100%;
+      max-width: 480px;
+      background: #451a03;
+      border: 1px solid var(--accent-yellow);
+      color: #fef08a;
+      padding: 16px;
+      border-radius: 10px;
+      margin-top: 20px;
+      display: none;
+      box-sizing: border-box;
+      text-align: left;
+    }
+
+    #permission-warning h3 {
+      margin-top: 0;
+      color: var(--accent-yellow);
+    }
+
+    #permission-warning ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    #permission-warning li {
+      margin-bottom: 6px;
+    }
+
+    .btn-retry {
+      margin-top: 12px;
+      background: var(--accent-yellow);
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Reading the Camarin</h1>
+    <p class="subtitle" id="scanner-subtitle">Entrance Attendance Scanner</p>
+    
+    <div class="mode-switch-container">
+      <button id="btn-entry" class="btn-mode active-entry" onclick="setMode('entry')">📥 Entrance Mode</button>
+      <button id="btn-exit" class="btn-mode" onclick="setMode('exit')">📤 Exit Mode</button>
+    </div>
+  </header>
+
+  <div id="scanner-container">
+    <div id="reader"></div>
+    <button id="start-btn" class="btn-start" onclick="startScanner()">📷 Start Camera Scanner</button>
+  </div>
+
+  <div id="display"></div>
+
+  <div id="permission-warning">
+    <h3>📷 Camera Access Required</h3>
+    <p>Camera permission was denied or blocked inside the embedded site. To fix this:</p>
+    <ul>
+      <li>Look for the camera icon 🔒/📷 near your browser URL address bar and set Camera access to <b>Allow</b>.</li>
+      <li>If using iOS/Safari, check <b>Settings > Safari > Camera</b>.</li>
+      <li>If using Android/Chrome, tap the lock icon next to the URL > <b>Permissions > Camera</b>.</li>
+      <li>Ensure this page is accessed via <b>HTTPS</b>.</li>
+    </ul>
+    <button class="btn-retry" onclick="location.reload()">Reload & Retry</button>
+  </div>
+
+  <script>
+    // REPLACE WITH YOUR DEPLOYED WEB APP URL
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwoDFtGuajMwUsol7VgK_D2CKt-976RfXoaGY6dN7_YurR4yUUEKNK2h9G11x1LP8g2/exec";
+    const EVENT_NAME = "Reading the Camarin"; 
+    
+    let currentMode = "entry"; // 'entry' or 'exit'
+    let html5QrCode = null;
+    let isProcessing = false;
+
+    function setMode(mode) {
+      currentMode = mode;
+      const btnEntry = document.getElementById("btn-entry");
+      const btnExit = document.getElementById("btn-exit");
+      const subtitle = document.getElementById("scanner-subtitle");
+
+      if (mode === "entry") {
+        btnEntry.className = "btn-mode active-entry";
+        btnExit.className = "btn-mode";
+        subtitle.innerText = "Entrance Attendance Scanner";
+      } else {
+        btnEntry.className = "btn-mode";
+        btnExit.className = "btn-mode active-exit";
+        subtitle.innerText = "Exit Attendance Scanner";
+      }
+    }
+
+   function startScanner() {
+  document.getElementById("start-btn").style.display = "none";
+  document.getElementById("permission-warning").style.display = "none";
+
+  html5QrCode = new Html5Qrcode("reader");
+  const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+  // 1. Try rear camera first
+  html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+    .catch(err => {
+      console.warn("Rear camera not found, falling back to default camera:", err);
+      // 2. Fall back to front/default webcam if rear camera is not available
+      return html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
+    })
+    .catch(err => {
+      console.error("Camera start error:", err);
+      document.getElementById("permission-warning").style.display = "block";
+      document.getElementById("start-btn").style.display = "inline-block";
+      document.getElementById("start-btn").innerText = "Retry Camera Access";
+    });
+}
+
+    function onScanSuccess(decodedText) {
+      if (isProcessing) return;
+      isProcessing = true;
+
+      const displayEl = document.getElementById("display");
+
+      fetch(`${WEB_APP_URL}?action=${currentMode}&data=${encodeURIComponent(decodedText)}`)
+        .then(res => res.json())
+        .then(response => {
+          if (response.status === "success") {
+            if (currentMode === "entry") {
+              displayEl.className = "status-success";
+              displayEl.innerText = `Welcome ${response.name} (${response.section}) to ${EVENT_NAME}!`;
+            } else {
+              displayEl.className = "status-exit-success";
+              displayEl.innerText = `Goodbye ${response.name} (${response.section})! Exit recorded for ${EVENT_NAME}.`;
+            }
+            
+            displayEl.style.display = "block";
+
+            setTimeout(() => {
+              displayEl.style.display = "none";
+              isProcessing = false;
+            }, 4000);
+          } else {
+            showTemporaryError("Invalid or Unrecognized QR Code");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          showTemporaryError(`Network error recording ${currentMode}`);
+        });
+    }
+
+    function showTemporaryError(message) {
+      const displayEl = document.getElementById("display");
+      displayEl.className = "status-error";
+      displayEl.innerText = message;
+      displayEl.style.display = "block";
+
+      setTimeout(() => {
+        displayEl.style.display = "none";
+        isProcessing = false;
+      }, 3500);
+    }
+
+    function onScanFailure(error) {
+      // Quietly ignore individual frame read failures
+    }
+  </script>
+</body>
+</html>
