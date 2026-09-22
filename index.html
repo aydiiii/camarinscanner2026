@@ -400,49 +400,37 @@
       if (isProcessing) return;
       isProcessing = true;
 
+      // 1. INSTANT FEEDBACK (0ms delay for operator)
+      if (navigator.vibrate) navigator.vibrate(100);
+      
+      let studentName = "Scanned";
+      try {
+        const parsed = JSON.parse(decodedText);
+        studentName = parsed.name || parsed.email || decodedText;
+      } catch(e) {
+        studentName = decodedText;
+      }
+
       const displayEl = document.getElementById("display");
       displayEl.className = currentMode === "entry" ? "status-success" : "status-exit-success";
-      displayEl.innerText = "⚡ Processing Scan...";
+      displayEl.innerText = `✅ ${currentMode.toUpperCase()} RECORDED: ${studentName}`;
       displayEl.style.display = "block";
 
-      if (navigator.vibrate) navigator.vibrate(100);
-
-      fetch(`${WEB_APP_URL}?action=${currentMode}&data=${encodeURIComponent(decodedText)}`)
-        .then(res => res.json())
-        .then(response => {
-          if (response.status === "success") {
-            if (currentMode === "entry") {
-              displayEl.className = "status-success";
-              displayEl.innerText = `Welcome, ${response.name} (${response.section})! Entrance recorded.`;
-            } else {
-              displayEl.className = "status-exit-success";
-              displayEl.innerText = `Goodbye, ${response.name} (${response.section})! Exit recorded.`;
-            }
-
-            setTimeout(() => {
-              displayEl.style.display = "none";
-              isProcessing = false;
-            }, 2000);
-          } else {
-            showTemporaryError(response.message || "Unrecognized QR Code");
-          }
-        })
+      // 2. SEND TO GOOGLE SHEETS IN BACKGROUND (Non-blocking)
+      const targetUrl = `${WEB_APP_URL}?action=${currentMode}&data=${encodeURIComponent(decodedText)}`;
+      
+      fetch(targetUrl)
         .catch(err => {
-          console.error(err);
-          showTemporaryError(`Network error recording ${currentMode}`);
+          console.error("Logging error:", err);
+          displayEl.className = "status-error";
+          displayEl.innerText = "⚠️ Error sending record to Google Sheets";
         });
-    }
 
-    function showTemporaryError(message) {
-      const displayEl = document.getElementById("display");
-      displayEl.className = "status-error";
-      displayEl.innerText = message;
-      displayEl.style.display = "block";
-
+      // 3. READY FOR NEXT SCAN IN 1.2 SECONDS
       setTimeout(() => {
         displayEl.style.display = "none";
         isProcessing = false;
-      }, 2500);
+      }, 1200);
     }
 
     function onScanFailure(error) {
